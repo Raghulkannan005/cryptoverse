@@ -4,7 +4,7 @@ const cryptoApiHeaders = {
   'apikey': import.meta.env.VITE_COINLAYER_API_KEY
 };
 
-const baseUrl = 'http://api.coinlayer.com';
+const baseUrl = 'https://api.coinlayer.com';
 
 export const fetchCoins = async (count) => {
   try {
