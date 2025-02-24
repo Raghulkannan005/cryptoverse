@@ -1,43 +1,34 @@
 import axios from 'axios';
-
-const cryptoApiHeaders = {
-  'apikey': import.meta.env.VITE_COINLAYER_API_KEY
-};
-
-const baseUrl = 'https://api.coinlayer.com';
+import { cryptoApiConfig } from './config';
 
 export const fetchCoins = async (count) => {
   try {
-    const listResponse = await axios.get(`${baseUrl}/list`, {
-      headers: cryptoApiHeaders,
-      params: {
-        access_key: import.meta.env.VITE_COINLAYER_API_KEY
-      }
+    const { data: listData } = await axios.get(`${cryptoApiConfig.baseUrl}/list`, {
+      headers: cryptoApiConfig.headers,
+      params: cryptoApiConfig.params
     });
 
-    if (!listResponse.data.success) {
-      throw new Error(listResponse.data.error.info || 'Failed to fetch coin list');
+    if (!listData.success) {
+      throw new Error(listData.error?.info || 'Failed to fetch coin list');
     }
 
-    const liveResponse = await axios.get(`${baseUrl}/live`, {
-      headers: cryptoApiHeaders,
-      params: {
-        access_key: import.meta.env.VITE_COINLAYER_API_KEY
-      }
+    const { data: liveData } = await axios.get(`${cryptoApiConfig.baseUrl}/live`, {
+      headers: cryptoApiConfig.headers,
+      params: cryptoApiConfig.params
     });
 
-    if (!liveResponse.data.success) {
-      throw new Error(liveResponse.data.error.info || 'Failed to fetch live rates');
+    if (!liveData.success) {
+      throw new Error(liveData.error?.info || 'Failed to fetch live rates');
     }
 
-    const coins = Object.entries(listResponse.data.crypto)
+    const coins = Object.entries(listData.crypto)
       .slice(0, count)
       .map(([symbol, coin]) => ({
         ...coin,
         symbol,
-        price: liveResponse.data.rates[symbol] || 0,
-        marketCap: coin.max_supply * (liveResponse.data.rates[symbol] || 0),
-        volume24h: liveResponse.data.rates[symbol] || 0,
+        price: liveData.rates[symbol] || 0,
+        marketCap: coin.max_supply * (liveData.rates[symbol] || 0),
+        volume24h: liveData.rates[symbol] || 0,
         numberOfMarkets: 0,
         numberOfExchanges: 0
       }));
@@ -45,7 +36,7 @@ export const fetchCoins = async (count) => {
     return coins;
   } catch (error) {
     console.error('Error fetching coins:', error);
-    throw error; // Propagate error to component for proper handling
+    throw error;
   }
 };
 
