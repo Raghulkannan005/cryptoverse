@@ -12,7 +12,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: "https://cryptoverse-bca.vercel.app",
+    origin: "https://cryptoverse-bca.vercel.app/",
 }));
 
 
