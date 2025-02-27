@@ -10,6 +10,8 @@ const Cryptocurrencies = ({ simplified }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
+  const [fallbackTimestamp, setFallbackTimestamp] = useState(null);
 
   useEffect(() => {
     const fetchCryptoData = async () => {
@@ -17,7 +19,16 @@ const Cryptocurrencies = ({ simplified }) => {
         setLoading(true);
         setError('');
         const data = await fetchCoins(count);
-        setCryptos(Object.values(data));
+        
+        // Check if we're receiving fallback data
+        if (data.isFallbackData) {
+          setUsingFallbackData(true);
+          setFallbackTimestamp(data.cachedAt);
+          setCryptos(Object.values(data.data));
+        } else {
+          setUsingFallbackData(false);
+          setCryptos(Object.values(data));
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -29,7 +40,7 @@ const Cryptocurrencies = ({ simplified }) => {
   }, [count]);
 
   const filteredData = cryptos.filter((coin) =>
-    coin.name.toLowerCase().includes(searchTerm.toLowerCase())
+    coin && coin.name ? coin.name.toLowerCase().includes(searchTerm.toLowerCase()) : false
   );
 
   if (loading) return (
@@ -38,14 +49,33 @@ const Cryptocurrencies = ({ simplified }) => {
     </div>
   );
 
-  if (error) return (
-    <div className="text-center p-4 bg-red-50 text-red-500 rounded-lg">
-      {error}
-    </div>
-  );
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "";
+    return new Date(timestamp).toLocaleString();
+  };
 
   return (
     <div className="p-4">
+      {usingFallbackData && !simplified && (
+        <div className="bg-yellow-500/20 backdrop-blur-lg p-4 rounded-xl mb-6 text-white flex items-center justify-between">
+          <p>
+            <span className="font-bold">Note:</span> Showing previously cached data from {formatDate(fallbackTimestamp)}
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-yellow-500/30 hover:bg-yellow-500/50 px-4 py-1 rounded-lg text-sm"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="text-center p-4 bg-red-50 text-red-500 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
+      
       {!simplified && (
         <div className="mb-6 relative">
           <input 

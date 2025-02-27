@@ -1,53 +1,37 @@
 import axios from 'axios';
-import { cryptoApiConfig } from './config';
+
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+
+// Create a function to get the current token (dynamic)
+const getAuthToken = () => localStorage.getItem('token');
 
 export const fetchCoins = async (count) => {
   try {
-    const { data: listData } = await axios.get(`${cryptoApiConfig.baseUrl}/list`, {
-      headers: cryptoApiConfig.headers,
-      params: cryptoApiConfig.params
+    const { data } = await axios.get(`${API_URL}/cryptos/coins?count=${count}`, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`
+      }
     });
-
-    if (!listData.success) {
-      throw new Error(listData.error?.info || 'Failed to fetch coin list');
-    }
-
-    const { data: liveData } = await axios.get(`${cryptoApiConfig.baseUrl}/live`, {
-      headers: cryptoApiConfig.headers,
-      params: cryptoApiConfig.params
-    });
-
-    if (!liveData.success) {
-      throw new Error(liveData.error?.info || 'Failed to fetch live rates');
-    }
-
-    const coins = Object.entries(listData.crypto)
-      .slice(0, count)
-      .map(([symbol, coin]) => ({
-        ...coin,
-        symbol,
-        price: liveData.rates[symbol] || 0,
-        marketCap: coin.max_supply * (liveData.rates[symbol] || 0),
-        volume24h: liveData.rates[symbol] || 0,
-        numberOfMarkets: 0,
-        numberOfExchanges: 0
-      }));
-
-    return coins;
+    return data;
   } catch (error) {
     console.error('Error fetching coins:', error);
     throw error;
   }
 };
 
+// Add the missing fetchCoinDetails function
 export const fetchCoinDetails = async (coinId) => {
   try {
-    const response = await axios.get(`${baseUrl}/live?target=${coinId}`, {
-      headers: cryptoApiHeaders
+    const { data } = await axios.get(`${API_URL}/cryptos/coin/${coinId}`, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`
+      }
     });
-    return response.data.crypto[coinId];
+    return data;
   } catch (error) {
     console.error('Error fetching coin details:', error);
-    return null;
+    throw error;
   }
 };
+
+// Other functions remain the same

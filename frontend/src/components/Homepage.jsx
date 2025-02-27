@@ -1,37 +1,52 @@
-import { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import millify from 'millify';
 import { Link } from 'react-router-dom';
 import Cryptocurrencies from './Cryptocurrencies';
 import News from './News';
 import Spinner from './Spinner';
-import { fetchCoins } from '../services/cryptoApi';
+import axios from 'axios';
 
 const Homepage = () => {
   const [globalStats, setGlobalStats] = useState({
     total: 0,
     totalExchanges: 0,
-    totalMarketCap: 0,
     total24hVolume: 0,
     totalMarkets: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
+  const [fallbackTimestamp, setFallbackTimestamp] = useState(null);
 
   useEffect(() => {
     const fetchGlobalStats = async () => {
       try {
         setLoading(true);
-        const data = await fetchCoins(10);
-        setGlobalStats({
-          total: data.length,
-          totalMarketCap: data.reduce((acc, coin) => acc + coin.marketCap, 0),
-          total24hVolume: data.reduce((acc, coin) => acc + coin.volume24h, 0),
-          totalMarkets: data.reduce((acc, coin) => acc + coin.numberOfMarkets, 0),
-          totalExchanges: data.reduce((acc, coin) => acc + coin.numberOfExchanges, 0),
+        console.log("Attempting to fetch global stats...");
+        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/cryptos/global-stats`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
         });
-      } catch (error) {
-        setError(error.message);
-      } finally {
+        console.log("Global stats received:", data);
+        
+        // Check if we're receiving fallback data
+        if (data.isFallbackData) {
+          setUsingFallbackData(true);
+          setFallbackTimestamp(data.cachedAt);
+          
+          // Remove the fallback indicators for the actual data
+          const { isFallbackData, cachedAt, ...actualData } = data;
+          setGlobalStats(actualData);
+        } else {
+          setUsingFallbackData(false);
+          setGlobalStats(data);
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error("Error details:", err.response?.data || err.message);
+        setError(err.message || 'Failed to fetch global stats');
         setLoading(false);
       }
     };
@@ -50,6 +65,11 @@ const Homepage = () => {
     </div>
   );
 
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "";
+    return new Date(timestamp).toLocaleString();
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-900 via-lightBlue to-blue-800">
       {/* Animated background blobs */}
@@ -60,6 +80,20 @@ const Homepage = () => {
 
       {/* Content container */}
       <div className="relative z-10 p-6">
+        {usingFallbackData && (
+          <div className="bg-yellow-500/20 backdrop-blur-lg p-4 rounded-xl mb-6 text-white flex items-center justify-between">
+            <p>
+              <span className="font-bold">Note:</span> Showing previously cached data from {formatDate(fallbackTimestamp)}
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-yellow-500/30 hover:bg-yellow-500/50 px-4 py-1 rounded-lg text-sm"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+      
         <h2 className="text-3xl font-bold mb-6 text-white">Global Crypto Stats</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl shadow-lg border border-white/20 hover:shadow-xl transition-shadow">
@@ -70,10 +104,7 @@ const Homepage = () => {
             <h3 className="text-white/80 text-sm font-semibold mb-2">Total Exchanges</h3>
             <p className="text-2xl font-bold text-white">{millify(globalStats.totalExchanges)}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl shadow-lg border border-white/20 hover:shadow-xl transition-shadow">
-            <h3 className="text-white/80 text-sm font-semibold mb-2">Total Market Cap</h3>
-            <p className="text-2xl font-bold text-white">{millify(globalStats.totalMarketCap)}</p>
-          </div>
+
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl shadow-lg border border-white/20 hover:shadow-xl transition-shadow">
             <h3 className="text-white/80 text-sm font-semibold mb-2">Total 24h Volume</h3>
             <p className="text-2xl font-bold text-white">{millify(globalStats.total24hVolume)}</p>

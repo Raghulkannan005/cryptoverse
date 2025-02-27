@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, memo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../context/AuthContext';
 import icon from '../images/cryptocurrency.png';
 
-const Navbar = () => {
+// Memoize the Navbar to prevent unnecessary re-renders
+const Navbar = memo(() => {
   const [activeMenu, setActiveMenu] = useState(true);
   const [screenSize, setScreenSize] = useState(null);
+  const { isAuthenticated, logout } = useAuthContext();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleResize = () => setScreenSize(window.innerWidth);
@@ -21,6 +25,13 @@ const Navbar = () => {
     }
   }, [screenSize]);
 
+  const handleLogout = () => {
+    logout();
+    // Import and call clearApiCache if needed
+    // clearApiCache();
+    navigate('/login');
+  };
+
   return (
     <div className="nav-container bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4">
@@ -28,15 +39,15 @@ const Navbar = () => {
           <div className="flex items-center">
             <img src={icon} alt="Cryptoverse Logo" className="w-8 h-8 mr-2" />
             <h2 className="text-lightBlue text-xl font-bold">
-              <Link to="/">Cryptoverse</Link>
+              <Link to={isAuthenticated ? "/home" : "/login"}>Cryptoverse</Link>
             </h2>
           </div>
           
-          {activeMenu && (
-            <nav className="hidden md:block">
+          <nav className="hidden md:flex items-center">
+            {isAuthenticated && (
               <ul className="flex space-x-8">
                 <li>
-                  <Link to="/" className="text-gray-600 hover:text-blue-900 font-medium transition-colors">
+                  <Link to="/home" className="text-gray-600 hover:text-blue-900 font-medium transition-colors">
                     Home
                   </Link>
                 </li>
@@ -61,12 +72,31 @@ const Navbar = () => {
                   </Link>
                 </li>
               </ul>
-            </nav>
-          )}
+            )}
+            
+            {isAuthenticated ? (
+              <button 
+                onClick={handleLogout}
+                className="ml-8 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link 
+                to="/login" 
+                className="ml-8 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+              >
+                Login
+              </Link>
+            )}
+          </nav>
         </div>
       </div>
     </div>
   );
-};
+});
+
+// Add display name for debugging
+Navbar.displayName = 'Navbar';
 
 export default Navbar;
