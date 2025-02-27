@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthContext } from '../context/AuthContext';
+import axios from 'axios';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -28,27 +29,28 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Basic validation
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
-      return;
-    }
-    
     try {
       setLoading(true);
       setError('');
       
-      const result = await login(formData);
+      // Add mode: 'cors' to make browser handle CORS correctly
+      const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/auth/login`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true
+        }
+      );
       
-      if (result === true) {
-        navigate('/home');
-      } else if (result.error) {
-        setError(result.error);
-      }
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data));
+      navigate('/home');
     } catch (err) {
-      setError('An unexpected error occurred');
-      console.error(err);
+      console.error("Login error:", err);
+      setError(err.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
