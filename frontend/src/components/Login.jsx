@@ -33,23 +33,17 @@ const Login = () => {
       setLoading(true);
       setError('');
       
-      // Remove withCredentials if you're not using cookies
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/auth/login`, 
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+      // Use the context's login function instead of direct axios call
+      const result = await login(formData);
       
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data));
-      navigate('/home');
+      if (result === true) {
+        navigate('/home');
+      } else if (result.error) {
+        setError(result.error);
+      }
     } catch (err) {
       console.error("Login error:", err);
-      setError('Connection failed. Please try again later.');
+      setError('Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
