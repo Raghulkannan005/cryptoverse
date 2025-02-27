@@ -8,24 +8,27 @@ import adminRoutes from "./routes/adminRoutes.js";
 
 import errorMiddleware from "./middlewares/errorMiddleware.js";
 
+// Load env variables first
+dotenv.config();
+
 const app = express();
 
-// Middleware
+// Fixed CORS configuration
 app.use(cors({
-    origin: "https://cryptoverse-bca.vercel.app/",
+    origin: ["https://cryptoverse-bca.vercel.app"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
-
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-dotenv.config();
-
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/cryptos', cryptoRoutes);
-app.use('/api/admin', adminRoutes)
+app.use('/api/admin', adminRoutes);
 
+// Error handling middleware
 app.use(errorMiddleware);
-
 
 export default app;
