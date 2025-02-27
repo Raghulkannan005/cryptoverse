@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 
 import authRoutes from "./routes/authRoutes.js";
 import cryptoRoutes from "./routes/cryptoRoutes.js";
@@ -38,6 +40,36 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Security headers with helmet
+app.use(helmet());
+
+// General API rate limiter - 100 requests per 15 minutes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per windowMs
+  standardHeaders: true,
+  message: {
+    status: 429,
+    message: 'Too many requests, please try again later.'
+  }
+});
+
+// Stricter rate limit for authentication endpoints - 5 attempts per minute
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // 5 requests per minute
+  standardHeaders: true,
+  message: {
+    status: 429,
+    message: 'Too many login attempts, please try again later.'
+  }
+});
+
+// Apply rate limiters
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 // Handle OPTIONS on all routes
 app.options('*', (req, res) => {
