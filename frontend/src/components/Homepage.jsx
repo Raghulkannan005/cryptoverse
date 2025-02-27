@@ -5,6 +5,7 @@ import Cryptocurrencies from './Cryptocurrencies';
 import News from './News';
 import Spinner from './Spinner';
 import axios from 'axios';
+import Watchlist from './Watchlist';
 
 const Homepage = () => {
   const [globalStats, setGlobalStats] = useState({
@@ -113,6 +114,11 @@ const Homepage = () => {
             <h3 className="text-white/80 text-sm font-semibold mb-2">Total Markets</h3>
             <p className="text-2xl font-bold text-white">{millify(globalStats.totalMarkets)}</p>
           </div>
+        </div>
+
+        <div className="mt-12 mb-6">
+          <h2 className="text-2xl font-bold text-white mb-6">Your Watchlist</h2>
+          <Watchlist simplified={true} />
         </div>
 
         <div className="mt-12 mb-6 flex justify-between items-center">

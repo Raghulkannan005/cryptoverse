@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import millify from 'millify';
-import { FaDollarSign, FaHashtag, FaCheck, FaExclamationCircle, FaMoneyBillWave } from 'react-icons/fa';
+import { FaDollarSign, FaHashtag, FaCheck, FaExclamationCircle, FaMoneyBillWave, FaStar } from 'react-icons/fa';
 import { fetchCoinDetails } from '../services/cryptoApi';
+import axios from 'axios';
 
 const CryptoDetails = () => {
   const { coinId } = useParams();
   const [cryptoDetails, setCryptoDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -19,6 +22,57 @@ const CryptoDetails = () => {
 
     fetchDetails();
   }, [coinId]);
+
+  const checkWatchlistStatus = async () => {
+    try {
+      const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/cryptos/watchlist`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      // Check if current coin is in watchlist
+      const isInList = data.coins.some(coin => coin.symbol === coinId);
+      setIsInWatchlist(isInList);
+    } catch (err) {
+      console.error('Error checking watchlist status:', err);
+    }
+  };
+
+  useEffect(() => {
+    checkWatchlistStatus();
+  }, [coinId]);
+
+  const toggleWatchlist = async () => {
+    setWatchlistLoading(true);
+    try {
+      if (isInWatchlist) {
+        // Remove from watchlist
+        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/cryptos/watchlist`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          },
+          data: { coinId }
+        });
+        setIsInWatchlist(false);
+      } else {
+        // Add to watchlist
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/cryptos/watchlist`, 
+          { coinId },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        setIsInWatchlist(true);
+      }
+    } catch (err) {
+      console.error('Error updating watchlist:', err);
+    } finally {
+      setWatchlistLoading(false);
+    }
+  };
 
   if (loading) return (
     <div className="flex justify-center items-center h-screen">
@@ -83,14 +137,29 @@ const CryptoDetails = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-xl p-8 mb-8 shadow-2xl">
-        <h2 className="text-4xl font-bold text-white mb-4 flex items-center">
-          <img 
-            src={cryptoDetails.iconUrl} 
-            alt={cryptoDetails.name}
-            className="w-12 h-12 mr-4"
-          />
-          {cryptoDetails.name} ({cryptoDetails.symbol})
-        </h2>
+        <div className="flex justify-between items-start">
+          <h2 className="text-4xl font-bold text-white mb-4 flex items-center">
+            <img 
+              src={cryptoDetails.iconUrl} 
+              alt={cryptoDetails.name}
+              className="w-12 h-12 mr-4"
+            />
+            {cryptoDetails.name} ({cryptoDetails.symbol})
+          </h2>
+          
+          <button
+            onClick={toggleWatchlist}
+            disabled={watchlistLoading}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-colors ${
+              isInWatchlist 
+                ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
+                : 'bg-white/20 hover:bg-white/30 text-white'
+            }`}
+          >
+            <FaStar className={isInWatchlist ? 'text-white' : 'text-yellow-400'} />
+            <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
+          </button>
+        </div>
         <p className="text-gray-300 text-lg">
           {cryptoDetails.name} live price in US dollars.
           View value statistics, market cap and supply.

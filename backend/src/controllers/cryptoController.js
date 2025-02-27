@@ -307,66 +307,131 @@ export const getCryptoNews = async (req, res) => {
   }
 };
 
-// Add to watchlist
+// Add a coin to watchlist
 export const addToWatchList = async (req, res) => {
-  const { coinId } = req.body;
-  const userId = req.user._id;
-
   try {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    const { coinId } = req.body;
+    
+    if (!coinId) {
+      return res.status(400).json({ message: "Coin ID is required" });
     }
-
-    if (user.watchlist.includes(coinId)) {
-      return res.status(400).json({ message: "Coin already in watchlist" });
+    
+    // Get user from middleware
+    const userId = req.user.id;
+    
+    // Find if user already has a watchlist
+    let userWatchlist = await Watchlist.findOne({ user: userId });
+    
+    if (userWatchlist) {
+      // Check if coin already exists in watchlist
+      if (userWatchlist.coins.includes(coinId)) {
+        return res.status(400).json({ message: "Coin already in watchlist" });
+      }
+      
+      // Add coin to existing watchlist
+      userWatchlist.coins.push(coinId);
+      await userWatchlist.save();
+    } else {
+      // Create new watchlist for user
+      userWatchlist = new Watchlist({
+        user: userId,
+        coins: [coinId]
+      });
+      await userWatchlist.save();
     }
-
-    user.watchlist.push(coinId);
-    await user.save();
-
-    res.status(200).json({ message: "Coin added to watchlist" });
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Coin added to watchlist",
+      watchlist: userWatchlist.coins
+    });
+    
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error in addToWatchList:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// Get watchlist
+// Get user's watchlist
 export const getWatchList = async (req, res) => {
-  const userId = req.user._id;
-
   try {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // Get user from middleware
+    const userId = req.user.id;
+    
+    // Find user's watchlist
+    const userWatchlist = await Watchlist.findOne({ user: userId });
+    
+    if (!userWatchlist) {
+      return res.status(200).json({ coins: [] });
     }
-
-    // Don't use populate since watchlist contains strings, not references
-    res.status(200).json(user.watchlist);
+    
+    // Get detailed info for each coin in the watchlist
+    const watchlistCoins = [];
+    
+    // If you're storing coin data in your own database
+    for (const coinId of userWatchlist.coins) {
+      try {
+        const coinData = await getCoinDataById(coinId); // Implement this function to fetch coin data
+        if (coinData) {
+          watchlistCoins.push(coinData);
+        }
+      } catch (err) {
+        console.error(`Error fetching coin data for ${coinId}:`, err);
+      }
+    }
+    
+    res.status(200).json({ coins: watchlistCoins });
+    
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error in getWatchList:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// Remove from watchlist
+// Remove a coin from watchlist
 export const removeFromWatchList = async (req, res) => {
-  const { coinId } = req.body;
-  const userId = req.user._id;
-
   try {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    const { coinId } = req.body;
+    
+    if (!coinId) {
+      return res.status(400).json({ message: "Coin ID is required" });
     }
-
-    user.watchlist = user.watchlist.filter((id) => id.toString() !== coinId);
-    await user.save();
-
-    res.status(200).json({ message: "Coin removed from watchlist" });
+    
+    // Get user from middleware
+    const userId = req.user.id;
+    
+    // Find user's watchlist
+    const userWatchlist = await Watchlist.findOne({ user: userId });
+    
+    if (!userWatchlist) {
+      return res.status(404).json({ message: "Watchlist not found" });
+    }
+    
+    // Remove coin from watchlist
+    userWatchlist.coins = userWatchlist.coins.filter(coin => coin !== coinId);
+    await userWatchlist.save();
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Coin removed from watchlist",
+      watchlist: userWatchlist.coins
+    });
+    
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error in removeFromWatchList:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Helper function to get coin data by ID
+const getCoinDataById = async (coinId) => {
+  // Implement this based on your data source
+  // This could fetch from your own database or an external API
+  try {
+    const { data } = await axios.get(`${API_URL}/coins/${coinId}`);
+    return data;
+  } catch (err) {
+    console.error(`Error fetching coin data for ${coinId}:`, err);
+    return null;
   }
 };
