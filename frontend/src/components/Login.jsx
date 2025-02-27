@@ -33,15 +33,14 @@ const Login = () => {
       setLoading(true);
       setError('');
       
-      // Add mode: 'cors' to make browser handle CORS correctly
+      // Remove withCredentials if you're not using cookies
       const response = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/auth/login`, 
         formData,
         {
           headers: {
             'Content-Type': 'application/json',
-          },
-          withCredentials: true
+          }
         }
       );
       
@@ -50,7 +49,7 @@ const Login = () => {
       navigate('/home');
     } catch (err) {
       console.error("Login error:", err);
-      setError(err.response?.data?.message || 'Login failed');
+      setError('Connection failed. Please try again later.');
     } finally {
       setLoading(false);
     }
