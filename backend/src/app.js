@@ -6,7 +6,6 @@ import helmet from 'helmet';
 
 import authRoutes from "./routes/authRoutes.js";
 import cryptoRoutes from "./routes/cryptoRoutes.js";
-import adminRoutes from "./routes/adminRoutes.js";
 
 import errorMiddleware from "./middlewares/errorMiddleware.js";
 
@@ -17,7 +16,7 @@ const app = express();
 
 // Configure CORS properly - this simplifies the setup
 const corsOptions = {
-  origin: ["https://cryptoverse-bca.vercel.app"],
+  origin: ["https://cryptoverse-bca.vercel.app","http://localhost:5173"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -65,7 +64,6 @@ app.use('/api/auth/register', authLimiter);
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/cryptos', cryptoRoutes);
-app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use(errorMiddleware);

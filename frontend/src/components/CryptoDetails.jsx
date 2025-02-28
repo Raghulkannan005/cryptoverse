@@ -1,78 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import millify from 'millify';
-import { FaDollarSign, FaHashtag, FaCheck, FaExclamationCircle, FaMoneyBillWave, FaStar } from 'react-icons/fa';
-import { fetchCoinDetails } from '../services/cryptoApi';
-import axios from 'axios';
+import { FaDollarSign, FaHashtag, FaCheck, FaExclamationCircle, FaMoneyBillWave } from 'react-icons/fa';
+import { fetchCoinDetails, fetchCoinHistory } from '../services/cryptoApi';
+import Chart from 'chart.js/auto';
+import { Line } from 'react-chartjs-2';
 
 const CryptoDetails = () => {
   const { coinId } = useParams();
   const [cryptoDetails, setCryptoDetails] = useState(null);
+  const [timeperiod, setTimeperiod] = useState('7d');
+  const [coinHistory, setCoinHistory] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isInWatchlist, setIsInWatchlist] = useState(false);
-  const [watchlistLoading, setWatchlistLoading] = useState(false);
+
+  const time = ['24h', '7d', '30d', '3m', '1y'];
 
   useEffect(() => {
-    const fetchDetails = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      const data = await fetchCoinDetails(coinId);
-      setCryptoDetails(data);
-      setLoading(false);
+      try {
+        const detailsData = await fetchCoinDetails(coinId);
+        const historyData = await fetchCoinHistory(coinId, timeperiod);
+        
+        setCryptoDetails(detailsData);
+        setCoinHistory(historyData);
+      } catch (error) {
+        console.error("Error fetching crypto data:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchDetails();
-  }, [coinId]);
-
-  const checkWatchlistStatus = async () => {
-    try {
-      const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/cryptos/watchlist`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      // Check if current coin is in watchlist
-      const isInList = data.coins.some(coin => coin.symbol === coinId);
-      setIsInWatchlist(isInList);
-    } catch (err) {
-      console.error('Error checking watchlist status:', err);
-    }
-  };
-
-  useEffect(() => {
-    checkWatchlistStatus();
-  }, [coinId]);
-
-  const toggleWatchlist = async () => {
-    setWatchlistLoading(true);
-    try {
-      if (isInWatchlist) {
-        // Remove from watchlist
-        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/cryptos/watchlist`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          },
-          data: { coinId }
-        });
-        setIsInWatchlist(false);
-      } else {
-        // Add to watchlist
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/cryptos/watchlist`, 
-          { coinId },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          }
-        );
-        setIsInWatchlist(true);
-      }
-    } catch (err) {
-      console.error('Error updating watchlist:', err);
-    } finally {
-      setWatchlistLoading(false);
-    }
-  };
+    fetchData();
+  }, [coinId, timeperiod]);
 
   if (loading) return (
     <div className="flex justify-center items-center h-screen">
@@ -80,12 +40,65 @@ const CryptoDetails = () => {
     </div>
   );
   
-  if (!cryptoDetails) return (
+  if (!cryptoDetails || !coinHistory) return (
     <div className="flex justify-center items-center h-screen text-red-500 text-xl">
       No data available
     </div>
   );
 
+  // Chart data
+  const coinPrice = coinHistory.history.map((point) => point.price);
+  const coinTimestamp = coinHistory.history.map((point) => {
+    const date = new Date(point.timestamp);
+    return timeperiod === '24h' 
+      ? date.toLocaleTimeString() 
+      : date.toLocaleDateString();
+  });
+  
+  const data = {
+    labels: coinTimestamp,
+    datasets: [
+      {
+        label: 'Price in USD',
+        data: coinPrice,
+        fill: false,
+        backgroundColor: '#0071bd',
+        borderColor: '#0071bd',
+        tension: 0.1
+      }
+    ]
+  };
+
+  const options = {
+    scales: {
+      y: {
+        ticks: {
+          beginAtZero: false,
+          color: 'white'
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        }
+      },
+      x: {
+        ticks: {
+          color: 'white'
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        labels: {
+          color: 'white'
+        }
+      }
+    }
+  };
+
+  // Your existing stats arrays...
   const stats = [
     { 
       title: 'Price to USD', 
@@ -140,30 +153,55 @@ const CryptoDetails = () => {
         <div className="flex justify-between items-start">
           <h2 className="text-4xl font-bold text-white mb-4 flex items-center">
             <img 
-              src={cryptoDetails.iconUrl} 
+              src={cryptoDetails.icon_url} 
               alt={cryptoDetails.name}
               className="w-12 h-12 mr-4"
+              onError={(e) => {
+                e.target.src = 'https://via.placeholder.com/48?text=?';
+              }}
             />
             {cryptoDetails.name} ({cryptoDetails.symbol})
           </h2>
-          
-          <button
-            onClick={toggleWatchlist}
-            disabled={watchlistLoading}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-colors ${
-              isInWatchlist 
-                ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
-                : 'bg-white/20 hover:bg-white/30 text-white'
-            }`}
-          >
-            <FaStar className={isInWatchlist ? 'text-white' : 'text-yellow-400'} />
-            <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
-          </button>
         </div>
         <p className="text-gray-300 text-lg">
           {cryptoDetails.name} live price in US dollars.
           View value statistics, market cap and supply.
         </p>
+      </div>
+
+      {/* Price History Chart */}
+      <div className="bg-gray-900 rounded-xl p-6 shadow-xl mb-8">
+        <div className="flex flex-wrap justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold text-white">
+            {cryptoDetails.name} Price Chart
+          </h3>
+          <div className="flex items-center mt-4 md:mt-0">
+            <p className="text-white mr-4">
+              <span className={coinHistory.change > 0 ? 'text-green-500' : 'text-red-500'}>
+                {coinHistory.change}%
+              </span>
+            </p>
+            <div className="flex space-x-2">
+              {time.map((period) => (
+                <button 
+                  key={period}
+                  onClick={() => setTimeperiod(period)}
+                  className={`px-3 py-1 rounded-md text-sm ${
+                    timeperiod === period 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <div className="h-80">
+          <Line data={data} options={options} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

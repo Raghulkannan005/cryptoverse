@@ -3,10 +3,8 @@ import {
   getCoinData,
   getCryptoNews,
   getGlobalStats,
-  addToWatchList,
-  getWatchList,
-  removeFromWatchList,
-  getCoinDetails
+  getCoinDetails,
+  getCoinHistory
 } from "../controllers/cryptoController.js";
 import protect from "../middlewares/authMiddleware.js";
 
@@ -19,10 +17,7 @@ router.get("/global-stats", getGlobalStats);
 router.get("/coins", protect, getCoinData);
 router.get("/news", protect, getCryptoNews);
 router.get("/coin/:coinId", protect, getCoinDetails);
-
-router.post("/watchlist", protect, addToWatchList);
-router.get("/watchlist", protect, getWatchList);
-router.delete("/watchlist", protect, removeFromWatchList);
+router.get("/coin/:coinId/history/:timeperiod?", protect, getCoinHistory);
 
 export default router;
 

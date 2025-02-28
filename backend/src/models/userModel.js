@@ -15,11 +15,6 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "Please add a password"],
     },
-    watchlist: [
-      {
-        type: String, // Store coin symbols as strings
-      },
-    ],
   },
   {
     timestamps: true,

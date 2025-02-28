@@ -11,7 +11,6 @@ import About from './components/About';
 import Login from './components/Login';
 import Register from './components/Register';
 import Spinner from './components/Spinner';
-import WatchlistPage from './components/WatchlistPage';
 
 // Protected route component with context
 const ProtectedRoute = ({ children }) => {
@@ -59,11 +58,6 @@ const AppRoutes = () => {
       <Route path="/news" element={
         <ProtectedRoute>
           <News />
-        </ProtectedRoute>
-      } />
-      <Route path="/watchlist" element={
-        <ProtectedRoute>
-          <WatchlistPage />
         </ProtectedRoute>
       } />
       <Route path="/contact" element={<Contact />} />

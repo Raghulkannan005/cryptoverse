@@ -34,4 +34,19 @@ export const fetchCoinDetails = async (coinId) => {
   }
 };
 
+// Add this function to your existing API service
+export const fetchCoinHistory = async (coinId, timeperiod = '7d') => {
+  try {
+    const { data } = await axios.get(`${API_URL}/cryptos/coin/${coinId}/history/${timeperiod}`, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`
+      }
+    });
+    return data;
+  } catch (error) {
+    console.error('Error fetching coin history:', error);
+    throw error;
+  }
+};
+
 // Other functions remain the same

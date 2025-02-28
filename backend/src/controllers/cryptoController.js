@@ -307,131 +307,82 @@ export const getCryptoNews = async (req, res) => {
   }
 };
 
-// Add a coin to watchlist
-export const addToWatchList = async (req, res) => {
-  try {
-    const { coinId } = req.body;
-    
-    if (!coinId) {
-      return res.status(400).json({ message: "Coin ID is required" });
-    }
-    
-    // Get user from middleware
-    const userId = req.user.id;
-    
-    // Find if user already has a watchlist
-    let userWatchlist = await Watchlist.findOne({ user: userId });
-    
-    if (userWatchlist) {
-      // Check if coin already exists in watchlist
-      if (userWatchlist.coins.includes(coinId)) {
-        return res.status(400).json({ message: "Coin already in watchlist" });
-      }
-      
-      // Add coin to existing watchlist
-      userWatchlist.coins.push(coinId);
-      await userWatchlist.save();
-    } else {
-      // Create new watchlist for user
-      userWatchlist = new Watchlist({
-        user: userId,
-        coins: [coinId]
-      });
-      await userWatchlist.save();
-    }
-    
-    res.status(200).json({ 
-      success: true, 
-      message: "Coin added to watchlist",
-      watchlist: userWatchlist.coins
-    });
-    
-  } catch (error) {
-    console.error("Error in addToWatchList:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+// Update your getCoinHistory function to use CoinGecko API
 
-// Get user's watchlist
-export const getWatchList = async (req, res) => {
+export const getCoinHistory = async (req, res) => {
   try {
-    // Get user from middleware
-    const userId = req.user.id;
+    const { coinId, timeperiod = '7d' } = req.params;
+    const cacheKey = `history-${coinId}-${timeperiod}`;
     
-    // Find user's watchlist
-    const userWatchlist = await Watchlist.findOne({ user: userId });
-    
-    if (!userWatchlist) {
-      return res.status(200).json({ coins: [] });
+    // Try to get cached data
+    const cachedHistory = getCachedData(cacheKey);
+    if (cachedHistory) {
+      return res.status(200).json(cachedHistory);
     }
     
-    // Get detailed info for each coin in the watchlist
-    const watchlistCoins = [];
+    // Map your time periods to CoinGecko format
+    let days;
+    if (timeperiod === '24h') days = 1;
+    else if (timeperiod === '7d') days = 7;
+    else if (timeperiod === '30d') days = 30;
+    else if (timeperiod === '3m') days = 90;
+    else if (timeperiod === '1y') days = 365;
+    else days = 7; // Default
     
-    // If you're storing coin data in your own database
-    for (const coinId of userWatchlist.coins) {
-      try {
-        const coinData = await getCoinDataById(coinId); // Implement this function to fetch coin data
-        if (coinData) {
-          watchlistCoins.push(coinData);
+    // First we need to map our coinId to CoinGecko's id system
+    // For this example, we'll get the Bitcoin data if the mapping fails
+    const coinResponse = await axios.get(`https://api.coingecko.com/api/v3/coins/list`);
+    
+    // Find coin by symbol (not perfect but workable)
+    let geckoId = 'bitcoin'; // Default fallback
+    const coinMatch = coinResponse.data.find(
+      coin => coin.symbol.toLowerCase() === coinId.toLowerCase()
+    );
+    
+    if (coinMatch) {
+      geckoId = coinMatch.id;
+    }
+    
+    // Get market chart data 
+    const response = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/${geckoId}/market_chart`,
+      {
+        params: {
+          vs_currency: 'usd',
+          days: days,
+          interval: days > 90 ? 'daily' : null // Use daily interval for long timeframes
         }
-      } catch (err) {
-        console.error(`Error fetching coin data for ${coinId}:`, err);
       }
+    );
+    
+    if (!response.data || !response.data.prices) {
+      return res.status(500).json({ message: "Failed to fetch historical data" });
     }
     
-    res.status(200).json({ coins: watchlistCoins });
-    
-  } catch (error) {
-    console.error("Error in getWatchList:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Remove a coin from watchlist
-export const removeFromWatchList = async (req, res) => {
-  try {
-    const { coinId } = req.body;
-    
-    if (!coinId) {
-      return res.status(400).json({ message: "Coin ID is required" });
-    }
-    
-    // Get user from middleware
-    const userId = req.user.id;
-    
-    // Find user's watchlist
-    const userWatchlist = await Watchlist.findOne({ user: userId });
-    
-    if (!userWatchlist) {
-      return res.status(404).json({ message: "Watchlist not found" });
-    }
-    
-    // Remove coin from watchlist
-    userWatchlist.coins = userWatchlist.coins.filter(coin => coin !== coinId);
-    await userWatchlist.save();
-    
-    res.status(200).json({ 
-      success: true, 
-      message: "Coin removed from watchlist",
-      watchlist: userWatchlist.coins
+    // Format data to match your existing structure
+    const history = response.data.prices.map(item => {
+      return {
+        timestamp: new Date(item[0]).toISOString(), // Convert timestamp to ISO string
+        price: item[1]
+      };
     });
     
+    // Calculate percentage change
+    const startPrice = history[0].price;
+    const endPrice = history[history.length - 1].price;
+    const change = ((endPrice - startPrice) / startPrice * 100).toFixed(2);
+    
+    const historyData = {
+      change,
+      history
+    };
+    
+    // Cache the successful response
+    apiCache.set(cacheKey, historyData);
+    
+    res.status(200).json(historyData);
   } catch (error) {
-    console.error("Error in removeFromWatchList:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Helper function to get coin data by ID
-const getCoinDataById = async (coinId) => {
-  // Implement this based on your data source
-  // This could fetch from your own database or an external API
-  try {
-    const { data } = await axios.get(`${API_URL}/coins/${coinId}`);
-    return data;
-  } catch (err) {
-    console.error(`Error fetching coin data for ${coinId}:`, err);
-    return null;
+    console.error("Error fetching coin history:", error);
+    res.status(500).json({ message: error.message });
   }
 };
