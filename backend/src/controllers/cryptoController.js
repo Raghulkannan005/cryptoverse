@@ -15,14 +15,27 @@ const getCachedData = (key) => {
   }
 };
 
-// Fetch all coins with pagination
+// Improved implementation to check cache first
 export const getCoinData = async (req, res) => {
   try {
     const count = req.query.count || 100;
+    const cacheKey = `coins-${count}`;
     
-    console.log("Fetching coin data with API key:", process.env.COINLAYER_API_KEY ? "Key exists" : "Key missing");
+    // Check cache BEFORE making API calls
+    const cachedCoins = getCachedData(cacheKey);
+    if (cachedCoins && !req.query.forceRefresh) {
+      // Use cached data if available and not forcing refresh
+      console.log("Using cached coin data");
+      return res.status(200).json({
+        data: cachedCoins.data,
+        cachedAt: cachedCoins.timestamp
+      });
+    }
     
-    // Get coin list
+    console.log("Fetching fresh coin data with API key:", 
+      process.env.COINLAYER_API_KEY ? "Key exists" : "Key missing");
+    
+    // Continue with API calls only if cache miss or forced refresh
     const listResponse = await axios.get("https://api.coinlayer.com/list", {
       params: { access_key: process.env.COINLAYER_API_KEY },
     });
@@ -41,7 +54,6 @@ export const getCoinData = async (req, res) => {
       }
       
       // Try to get cached data
-      const cacheKey = `coins-${count}`;
       const cachedCoins = getCachedData(cacheKey);
       if (cachedCoins) {
         return res.status(200).json({
@@ -71,7 +83,6 @@ export const getCoinData = async (req, res) => {
       }));
     
     // Cache the successful response
-    const cacheKey = `coins-${count}`;
     apiCache.set(cacheKey, {
       data: coins,
       timestamp: new Date().toISOString()
