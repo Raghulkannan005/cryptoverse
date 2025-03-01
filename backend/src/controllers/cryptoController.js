@@ -242,11 +242,25 @@ export const getGlobalStats = async (req, res) => {
   }
 };
 
-// Fetch crypto news
+// Optimized getCryptoNews that checks cache first
 export const getCryptoNews = async (req, res) => {
   try {
     const { category = 'cryptocurrency', count = 10, sentiment = null } = req.query;
     const cacheKey = `news-${category}-${count}-${sentiment || 'all'}`;
+    
+    // Check cache BEFORE making API calls
+    const cachedNews = getCachedData(cacheKey);
+    if (cachedNews && !req.query.forceRefresh) {
+      // Use cached data if available and not forcing refresh
+      console.log("Using cached news data");
+      return res.status(200).json({
+        data: cachedNews.data,
+        cachedAt: cachedNews.timestamp
+      });
+    }
+    
+    console.log("Fetching fresh news data with API key:", 
+      process.env.NEWSDATA_API_KEY ? "Key exists" : "Key missing");
     
     // Create search query for the API
     const searchQuery = `${category} AND (crypto OR blockchain OR cryptocurrency)`;
@@ -263,11 +277,11 @@ export const getCryptoNews = async (req, res) => {
     // Add optional parameters
     if (sentiment) params.sentiment = sentiment;
     
+    // Continue with API call only if cache miss or forced refresh
     const response = await axios.get("https://newsdata.io/api/1/news", { params });
     
     if (response.data.status !== "success") {
-      // Try to get cached data
-      const cachedNews = getCachedData(cacheKey);
+      // Try to get cached data as fallback
       if (cachedNews) {
         return res.status(200).json({
           data: cachedNews.data,
@@ -301,7 +315,7 @@ export const getCryptoNews = async (req, res) => {
   } catch (error) {
     console.error("Error fetching news:", error);
     
-    // Try to get cached data
+    // Try to get cached data as fallback
     const { category = 'cryptocurrency', count = 10, sentiment = null } = req.query;
     const cacheKey = `news-${category}-${count}-${sentiment || 'all'}`;
     const cachedNews = getCachedData(cacheKey);
