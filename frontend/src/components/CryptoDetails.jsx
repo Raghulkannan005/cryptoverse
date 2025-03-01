@@ -12,6 +12,7 @@ const CryptoDetails = () => {
   const [timeperiod, setTimeperiod] = useState('7d');
   const [coinHistory, setCoinHistory] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const time = ['24h', '7d', '30d', '3m', '1y'];
 
@@ -26,6 +27,7 @@ const CryptoDetails = () => {
         setCoinHistory(historyData);
       } catch (error) {
         console.error("Error fetching crypto data:", error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -40,6 +42,12 @@ const CryptoDetails = () => {
     </div>
   );
   
+  if (error) return (
+    <div className="flex justify-center items-center h-screen text-red-500 text-xl">
+      {error}
+    </div>
+  );
+
   if (!cryptoDetails || !coinHistory) return (
     <div className="flex justify-center items-center h-screen text-red-500 text-xl">
       No data available
