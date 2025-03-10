@@ -62,7 +62,7 @@ const News = ({ simplified }) => {
   return (
     <div className="news-container">
       {!simplified && usingFallbackData && (
-        <div className="bg-yellow-500/20 backdrop-blur-lg p-4 rounded-xl mb-6 text-white flex items-center justify-between">
+        <div className="bg-yellow-500/20 backdrop-blur-lg p-4 rounded-xl mb-6 text-blue-900 flex items-center justify-between">
           <p>
             <span className="font-bold">Note:</span> Showing previously cached data from {
               fallbackTimestamp ? new Date(fallbackTimestamp).toLocaleString() : 'unknown time'
@@ -84,12 +84,12 @@ const News = ({ simplified }) => {
             target="_blank" 
             rel="noreferrer"
             key={i}
-            className="bg-white/10 backdrop-blur-lg p-5 rounded-xl shadow-lg border border-white/20 hover:shadow-xl hover:bg-white/15 transition-all h-full flex flex-col"
+            className="bg-white/80 backdrop-blur-lg p-5 rounded-xl shadow-lg border border-white/20 hover:shadow-xl hover:bg-white/15 transition-all h-full flex flex-col"
           >
             <div className="flex justify-between mb-4 flex-grow">
               <div className="w-3/4 pr-4">
-                <h3 className="text-lg font-semibold text-white mb-2 line-clamp-3">{news.title}</h3>
-                <p className="text-white/70 text-sm line-clamp-3">
+                <h3 className="text-lg font-semibold text-blue-900 mb-2 line-clamp-3">{news.title}</h3>
+                <p className="text-blue-900/70 text-sm line-clamp-3">
                   {news.description.length > 100 
                     ? `${news.description.substring(0, 100)}...` 
                     : news.description}
@@ -106,7 +106,7 @@ const News = ({ simplified }) => {
                 />
               </div>
             </div>
-            <div className="flex justify-between items-center mt-auto pt-2 border-t border-white/10 text-xs text-white/60">
+            <div className="flex justify-between items-center mt-auto pt-2 border-t border-white/10 text-xs text-blue-900/60">
               <p>Source: {news.source}</p>
               <p>{moment(news.pubDate || new Date()).fromNow()}</p>
             </div>
