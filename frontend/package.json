@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "deploy": "npm run build && vercel",
     "preview": "vite preview"
   },
   "dependencies": {
