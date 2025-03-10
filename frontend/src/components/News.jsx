@@ -4,7 +4,7 @@ import Spinner from './Spinner';
 import axios from 'axios';
 
 const News = ({ simplified }) => {
-  const count = simplified ? 6 : 12;
+  const count = simplified ? 6 : 10;
   const [cryptoNews, setCryptoNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

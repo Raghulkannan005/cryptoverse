@@ -114,9 +114,9 @@ const Contact = () => {
 
             <div className="text-center mt-10 space-y-2">
                 <h4 className="text-xl font-bold mb-4">Other Ways to Contact Us</h4>
-                <p className="text-gray-600">Email: info@cryptoverse.com</p>
-                <p className="text-gray-600">Phone: +1 (555) 123-4567</p>
-                <p className="text-gray-600">Address: 123 Crypto Street, Digital City, DC 12345</p>
+                <p className="text-gray-600">Email: raghulkannan005@gmail.com</p>
+                <p className="text-gray-600">Phone: +91 9677605417</p>
+                <p className="text-gray-600">Address: Dubai Cross Street, Dubai Main road, Dubai</p>
             </div>
         </div>
     );
