@@ -247,11 +247,9 @@ export const getCryptoNews = async (req, res) => {
   try {
     const { category = 'cryptocurrency', count = 10, sentiment = null } = req.query;
     const cacheKey = `news-${category}-${count}-${sentiment || 'all'}`;
-    
-    // Check cache BEFORE making API calls
+
     const cachedNews = getCachedData(cacheKey);
     if (cachedNews && !req.query.forceRefresh) {
-      // Use cached data if available and not forcing refresh
       console.log("Using cached news data");
       return res.status(200).json({
         data: cachedNews.data,
