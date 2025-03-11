@@ -3,7 +3,6 @@ import {
   register,
   login,
   verifyToken
-  // other controllers
 } from "../controllers/authController.js";
 import protect from "../middlewares/authMiddleware.js";
 
@@ -13,6 +12,5 @@ router.post("/register", register);
 router.post("/login", login);
 router.get("/verify-token", protect, verifyToken);
 
-// other routes
 
 export default router;
