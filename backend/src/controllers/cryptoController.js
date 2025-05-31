@@ -15,6 +15,7 @@ const getCachedData = (key) => {
   }
 };
 
+
 // Improved implementation to check cache first
 export const getCoinData = async (req, res) => {
   try {

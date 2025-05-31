@@ -95,16 +95,6 @@ const News = ({ simplified }) => {
                     : news.description}
                 </p>
               </div>
-              <div className="w-1/4">
-                <img 
-                  src={news.image_url || 'https://via.placeholder.com/100?text=News'} 
-                  alt={news.title}
-                  className="w-full h-20 object-cover rounded-lg"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/100?text=News';
-                  }}
-                />
-              </div>
             </div>
             <div className="flex justify-between items-center mt-auto pt-2 border-t border-white/10 text-xs text-blue-900/60">
               <p>Source: {news.source}</p>
