@@ -1,5 +1,4 @@
 import axios from "axios";
-import User from "../models/userModel.js";
 import NodeCache from "node-cache";
 
 // Create cache with 1 hour TTL (3600 seconds)
@@ -15,17 +14,15 @@ const getCachedData = (key) => {
   }
 };
 
-
-// Improved implementation to check cache first
+// Get coin market data using CoinGecko API
 export const getCoinData = async (req, res) => {
   try {
-    const count = req.query.count || 100;
+    const count = parseInt(req.query.count) || 100;
     const cacheKey = `coins-${count}`;
     
     // Check cache BEFORE making API calls
     const cachedCoins = getCachedData(cacheKey);
     if (cachedCoins && !req.query.forceRefresh) {
-      // Use cached data if available and not forcing refresh
       console.log("Using cached coin data");
       return res.status(200).json({
         data: cachedCoins.data,
@@ -33,62 +30,39 @@ export const getCoinData = async (req, res) => {
       });
     }
     
-    console.log("Fetching fresh coin data with API key:", 
-      process.env.COINLAYER_API_KEY ? "Key exists" : "Key missing");
+    console.log("Fetching fresh coin data from CoinGecko");
     
-    // Continue with API calls only if cache miss or forced refresh
-    const listResponse = await axios.get("https://api.coinlayer.com/list", {
-      params: { access_key: process.env.COINLAYER_API_KEY },
+    // CoinGecko: /coins/markets
+    const response = await axios.get("https://api.coingecko.com/api/v3/coins/markets", {
+      params: {
+        vs_currency: "usd",
+        order: "market_cap_desc",
+        per_page: count,
+        page: 1,
+        sparkline: false
+      }
     });
-    
-    // Get live rates
-    const liveResponse = await axios.get("https://api.coinlayer.com/live", {
-      params: { access_key: process.env.COINLAYER_API_KEY },
-    });
-    
-    if (!listResponse.data.success || !liveResponse.data.success) {
-      if (listResponse.data.error) {
-        console.error("List API error:", listResponse.data.error);
-      }
-      if (liveResponse.data.error) {
-        console.error("Live API error:", liveResponse.data.error);
-      }
-      
-      // Try to get cached data
-      const cachedCoins = getCachedData(cacheKey);
-      if (cachedCoins) {
-        return res.status(200).json({
-          data: cachedCoins.data,
-          isFallbackData: true,
-          cachedAt: cachedCoins.timestamp
-        });
-      }
-      
-      return res.status(500).json({ message: "Failed to fetch cryptocurrency data" });
-    }
-    
-    const cryptos = listResponse.data.crypto || {};
-    const rates = liveResponse.data.rates || {};
-    
-    // Format the response to match what frontend expects
-    const coins = Object.entries(cryptos)
-      .slice(0, count)
-      .map(([symbol, coin]) => ({
-        ...coin,
-        symbol,
-        price: rates[symbol] || 0,
-        marketCap: coin.max_supply ? coin.max_supply * (rates[symbol] || 0) : 0,
-        volume24h: rates[symbol] || 0,
-        numberOfMarkets: 0,
-        numberOfExchanges: 0
-      }));
-    
+
+    const coins = response.data.map(coin => ({
+      uuid: coin.id,
+      name: coin.name,
+      symbol: coin.symbol.toUpperCase(),
+      price: coin.current_price,
+      marketCap: coin.market_cap,
+      volume24h: coin.total_volume,
+      numberOfMarkets: 0,
+      numberOfExchanges: 0,
+      iconUrl: coin.image,
+      change: coin.price_change_percentage_24h,
+      rank: coin.market_cap_rank
+    }));
+
     // Cache the successful response
     apiCache.set(cacheKey, {
       data: coins,
       timestamp: new Date().toISOString()
     });
-    
+
     res.status(200).json(coins);
   } catch (error) {
     console.error("Error fetching coins:", error.message);
@@ -108,50 +82,46 @@ export const getCoinData = async (req, res) => {
   }
 };
 
-// Get details for a specific coin
+// Get details for a specific coin using CoinGecko API
 export const getCoinDetails = async (req, res) => {
   try {
     const { coinId } = req.params;
     
-    // Get coin list for metadata
-    const listResponse = await axios.get("https://api.coinlayer.com/list", {
-      params: { access_key: process.env.COINLAYER_API_KEY },
+    // CoinGecko: /coins/{id}
+    const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coinId}`, {
+      params: {
+        localization: false,
+        tickers: false,
+        market_data: true,
+        community_data: false,
+        developer_data: false,
+        sparkline: false
+      }
     });
-    
-    // Get live rates
-    const liveResponse = await axios.get("https://api.coinlayer.com/live", {
-      params: { 
-        access_key: process.env.COINLAYER_API_KEY,
-        symbols: coinId
-      },
-    });
-    
-    if (!listResponse.data.success || !liveResponse.data.success) {
-      return res.status(500).json({ message: "Failed to fetch coin details" });
-    }
-    
-    const coinInfo = listResponse.data.crypto[coinId];
-    const price = liveResponse.data.rates[coinId] || 0;
-    
-    if (!coinInfo) {
+
+    const coin = response.data;
+    if (!coin) {
       return res.status(404).json({ message: "Coin not found" });
     }
-    
+
     // Create detailed coin object
     const coinDetails = {
-      ...coinInfo,
-      symbol: coinId,
-      price,
-      marketCap: coinInfo.max_supply ? coinInfo.max_supply * price : 0,
-      volume24h: price, // Simplification
-      rank: 0, // Not available from coinlayer
-      numberOfMarkets: 0, // Not available from coinlayer
-      numberOfExchanges: 0, // Not available from coinlayer
+      uuid: coin.id,
+      name: coin.name,
+      symbol: coin.symbol.toUpperCase(),
+      price: coin.market_data.current_price.usd,
+      marketCap: coin.market_data.market_cap.usd,
+      volume24h: coin.market_data.total_volume.usd,
+      rank: coin.market_cap_rank,
+      numberOfMarkets: 0,
+      numberOfExchanges: 0,
+      iconUrl: coin.image.large,
       supply: {
         confirmed: true,
-        total: coinInfo.max_supply || 0,
-        circulating: coinInfo.max_supply || 0 // Simplification
-      }
+        total: coin.market_data.total_supply,
+        circulating: coin.market_data.circulating_supply
+      },
+      description: coin.description.en
     };
     
     res.status(200).json(coinDetails);
@@ -161,70 +131,36 @@ export const getCoinDetails = async (req, res) => {
   }
 };
 
-// Fetch global stats
+// Fetch global stats using CoinGecko API
 export const getGlobalStats = async (req, res) => {
   try {
-    console.log("Fetching global stats with API key:", process.env.COINLAYER_API_KEY ? "Key exists" : "Key missing");
-    
-    // Get coin list
-    const listResponse = await axios.get("https://api.coinlayer.com/list", {
-      params: { access_key: process.env.COINLAYER_API_KEY },
-    });
-    
-    // Get live rates
-    const liveResponse = await axios.get("https://api.coinlayer.com/live", {
-      params: { access_key: process.env.COINLAYER_API_KEY },
-    });
-    
-    if (!listResponse.data.success || !liveResponse.data.success) {
-      if (listResponse.data.error) {
-        console.error("List API error:", listResponse.data.error);
-      }
-      if (liveResponse.data.error) {
-        console.error("Live API error:", liveResponse.data.error);
-      }
-      
-      // Try to get cached data
-      const cachedStats = getCachedData('global-stats');
-      if (cachedStats) {
-        return res.status(200).json({
-          ...cachedStats,
-          isFallbackData: true,
-          cachedAt: cachedStats.timestamp
-        });
-      }
-      
-      return res.status(500).json({ message: "Failed to fetch cryptocurrency data" });
+    const cachedStats = getCachedData('global-stats');
+    if (cachedStats && !req.query.forceRefresh) {
+      console.log("Using cached global stats");
+      return res.status(200).json({
+        ...cachedStats,
+        cachedAt: cachedStats.timestamp
+      });
     }
     
-    const cryptos = listResponse.data.crypto || {};
-    const rates = liveResponse.data.rates || {};
+    console.log("Fetching fresh global stats from CoinGecko");
     
-    // Calculate global stats
-    const totalCoins = Object.keys(cryptos).length;
-    let totalMarketCap = 0;
-    let total24hVolume = 0;
-    
-    Object.entries(cryptos).forEach(([symbol, coin]) => {
-      const price = rates[symbol] || 0;
-      if (coin.max_supply && price) {
-        totalMarketCap += coin.max_supply * price;
-      }
-      total24hVolume += price; // This is a simplification
-    });
-    
+    // CoinGecko: /global
+    const response = await axios.get("https://api.coingecko.com/api/v3/global");
+    const data = response.data.data;
+
     const globalStats = {
-      total: totalCoins,
-      totalExchanges: 10, // Placeholder
-      totalMarketCap,
-      total24hVolume,
-      totalMarkets: 100, // Placeholder
-      timestamp: new Date().toISOString() // Add timestamp
+      total: data.active_cryptocurrencies,
+      totalExchanges: data.markets,
+      totalMarketCap: data.total_market_cap.usd,
+      total24hVolume: data.total_volume.usd,
+      totalMarkets: data.markets,
+      timestamp: new Date().toISOString()
     };
-    
+
     // Cache the successful response
     apiCache.set('global-stats', globalStats);
-    
+
     res.status(200).json(globalStats);
   } catch (error) {
     console.error("Error fetching global stats:", error);
@@ -331,8 +267,7 @@ export const getCryptoNews = async (req, res) => {
   }
 };
 
-// Update your getCoinHistory function to use CoinGecko API
-
+// Get coin history using CoinGecko API
 export const getCoinHistory = async (req, res) => {
   try {
     const { coinId, timeperiod = '7d' } = req.params;
